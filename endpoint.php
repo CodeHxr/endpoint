@@ -1,8 +1,8 @@
  <?php
 	// Validate basic POST information
 	$error = (!isset($_POST['playerId']) ||
-			  !isset($_POST['coinsWon']) ||
-	          !isset($_POST['coinsBet']) ||
+              !isset($_POST['coinsWon']) ||
+              !isset($_POST['coinsBet']) ||
 	          !isset($_POST['hash']));
 	TestError($error);
 	
@@ -15,7 +15,7 @@
 	// Validate post data
 	$error = (!is_numeric($playerId) ||
 	          !is_numeric($coinsWon) ||
-			  !is_numeric($coinsBet));
+              !is_numeric($coinsBet));
 	TestError($error);
 	
 	// Attempt to update database
@@ -26,10 +26,10 @@
 	
 	$sql = "UPDATE player " . 
 	       "SET credits = credits + " . ($coinsWon - $coinsBet) . ", " .
-		   "    lifetimespins = lifetimespins + 1, " .
-		   "    lifetimewinnings = lifetimewinnings + " . $coinsWon . " " .
-		   "WHERE playerid = " . $playerId . " " .
-		   "AND   saltvalue = '" . $hash . "'"; // <-- this field should be properly sanitized
+           "    lifetimespins = lifetimespins + 1, " .
+           "    lifetimewinnings = lifetimewinnings + " . $coinsWon . " " .
+           "WHERE playerid = " . $playerId . " " .
+           "AND   saltvalue = '" . $hash . "'"; // <-- this field should be properly sanitized
 	$error = !$mysqli->query($sql);
 	TestError($error);
 	
@@ -39,7 +39,7 @@
 	// Get updated player information
 	$sql = "SELECT lifetimewinnings / lifetimespins, name, credits, lifetimespins " .
 	       "FROM player " .
-		   "WHERE playerid = " . $playerId;
+           "WHERE playerid = " . $playerId;
 	$result = $mysqli->query($sql);
 	$result->data_seek(0);
 	$row = $result->fetch_row();
@@ -51,19 +51,17 @@
 	// Generate JSON response
 	$playerData = array("Player ID" => $playerId, 
 	                    "Name" => $name,
-						"Credits" => $credits,
-						"Lifetime Spins" => $lifetimeSpins,
-						"Lifetime Average Return" => $lifetimeReturn);
+                        "Credits" => $credits,
+                        "Lifetime Spins" => $lifetimeSpins,
+                        "Lifetime Average Return" => $lifetimeReturn);
 	$json = json_encode($playerData);
 	
 	// Return JSON response and end
 	echo($json);
-	die;
 	
 	function TestError($error){
 		if($error){
-			echo('Error');
-			die;
+			die('{"Error"}');
 		}
 	}
 ?>
