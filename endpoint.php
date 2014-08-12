@@ -1,10 +1,24 @@
  <?php
+    /* 
+        DOCUMENTATION:
+            Error Codes:
+                1 - Invalid post data
+                2 - Non-numeric post data
+                3 - Can not connect to MySQL
+                4 - Hash mismatch
+                5 - UPDATE query failed
+                6 - UPDATE query affected 0 records
+            
+            Last Edit:
+                Joe Hicks, 8/11/2014
+    */
+    
     // Validate basic POST information
     $error = (!isset($_POST['playerId']) ||
               !isset($_POST['coinsWon']) ||
               !isset($_POST['coinsBet']) ||
               !isset($_POST['hash']));
-    TestError($error);
+    TestError($error, "1");
     
     // Retrieve POST data
     $playerId = $_POST['playerId'];
@@ -16,37 +30,51 @@
     $error = (!is_numeric($playerId) ||
               !is_numeric($coinsWon) ||
               !is_numeric($coinsBet));
-    TestError($error);
+    TestError($error, "2");
     
-    // Attempt to update database
+    // Connect to database
     $mysqli = new mysqli("localhost", "root", "", "joe");
     if($mysqli->connect_errno){
-        TestError(true);
+        TestError(true, "3");
     }
     
-    $sql = "UPDATE player " . 
-           "SET credits = credits + " . ($coinsWon - $coinsBet) . ", " .
-           "    lifetimespins = lifetimespins + 1, " .
-           "    lifetimewinnings = lifetimewinnings + " . $coinsWon . " " .
-           "WHERE playerid = " . $playerId . " " .
-           "AND   saltvalue = '" . $hash . "'"; // <-- this field should be properly sanitized
-    $error = !$mysqli->query($sql);
-    TestError($error);
-    
-    $error = !$mysqli->affected_rows;
-    TestError($error);
-    
-    // Get updated player information
-    $sql = "SELECT lifetimewinnings / lifetimespins, name, credits, lifetimespins " .
+    // Get player data - we have to pull the salt anyway, so save a 
+    // second round-trip to the database by getting everything we need
+    $sql = "SELECT name, credits, lifetimespins, lifetimewinnings, saltvalue " .
            "FROM player " .
            "WHERE playerid = " . $playerId;
     $result = $mysqli->query($sql);
     $result->data_seek(0);
-    $row = $result->fetch_row();
-    $lifetimeReturn = $row[0];
-    $name = $row[1];
-    $credits = $row[2];
-    $lifetimeSpins = $row[3];
+    $row = $result->fetch_row(); // Test for error here?
+    $name = $row[0];
+    $credits = $row[1];
+    $lifetimeSpins = $row[2];
+    $lifetimeWinnings = $row[3];
+    $saltvalue = $row[4];
+    
+    // Check MD5 hash
+    $prehash = $saltvalue . $playerId . $coinsWon . $coinsBet;
+    $serverhash = md5($prehash);
+    $error = ($serverhash != $hash);
+    TestError($error, "4");
+    
+    // Hash is good - update data
+    $lifetimeSpins++;
+    $credits += ($coinsWon - $coinsBet);
+    $lifetimeWinnings += $coinsWon;
+    $lifetimeReturn = $lifetimeWinnings / $lifetimeSpins;
+    
+    $sql = "UPDATE player " . 
+           "SET credits = " . $credits . ", " .
+           "    lifetimespins = " . $lifetimeSpins . ", " .
+           "    lifetimewinnings = " . $lifetimeWinnings . " " .
+           "WHERE playerid = " . $playerId;
+    $error = !$mysqli->query($sql);
+    TestError($error, "5");
+    
+    $error = !$mysqli->affected_rows;
+    TestError($error, "6");
+    
     
     // Generate JSON response
     $playerData = array("Player ID" => $playerId, 
@@ -59,9 +87,9 @@
     // Return JSON response and end
     echo($json);
     
-    function TestError($error){
+    function TestError($error, $code){
         if($error){
-            die('{"Error"}');
+            die('{"Error":"' . $code . '"}');
         }
     }
 ?>
