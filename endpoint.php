@@ -8,7 +8,8 @@
                 4 - Hash mismatch
                 5 - UPDATE query failed
                 6 - UPDATE query affected 0 records
-            
+                7 - Player not found
+                
             Last Edit:
                 Joe Hicks, 8/11/2014
     */
@@ -34,9 +35,8 @@
     
     // Connect to database
     $mysqli = new mysqli("localhost", "root", "", "joe");
-    if($mysqli->connect_errno){
-        TestError(true, "3");
-    }
+    $error = ($mysqli->connect_errno);
+    TestError($error, "3");
     
     // Get player data - we have to pull the salt anyway, so save a 
     // second round-trip to the database by getting everything we need
@@ -45,7 +45,11 @@
            "WHERE playerid = " . $playerId;
     $result = $mysqli->query($sql);
     $result->data_seek(0);
-    $row = $result->fetch_row(); // Test for error here?
+    $row = $result->fetch_row(); 
+    $error = ($row == NULL);
+    TestError($error, "7");
+    
+    // Assign data to local variables for clarity
     $name = $row[0];
     $credits = $row[1];
     $lifetimeSpins = $row[2];
